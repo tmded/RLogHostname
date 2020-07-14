@@ -9,7 +9,8 @@
 #import <sys/socket.h>
 #import <netinet/in.h>
 #import <SystemConfiguration/SystemConfiguration.h>
-
+#import <ifaddrs.h> // For getifaddrs()
+#import <net/if.h> // For IFF_LOOPBACK
 // change this to match your destination (server) IP address
 #define RLOG_IP_ADDRESS "tomslaptop.local"
 #define RLOG_PORT 11909
@@ -19,53 +20,27 @@
 Connectivity testing code pulled from Apple's Reachability Example: https://developer.apple.com/library/content/samplecode/Reachability
  */
 static bool hasConnectivity (){
-    struct sockaddr_in zeroAddress;
-    bzero(&zeroAddress, sizeof(zeroAddress));
-    zeroAddress.sin_len = sizeof(zeroAddress);
-    zeroAddress.sin_family = AF_INET;
+    struct ifaddrs *addresses;
+    struct ifaddrs *cursor;
+    BOOL wiFiAvailable = NO;
+    if (getifaddrs(&addresses) != 0) return NO;
 
-    SCNetworkReachabilityRef reachability = SCNetworkReachabilityCreateWithAddress(kCFAllocatorDefault, (const struct sockaddr*)&zeroAddress);
-    if (reachability != NULL) {
-        //NetworkStatus retVal = NotReachable;
-        SCNetworkReachabilityFlags flags;
-        if (SCNetworkReachabilityGetFlags(reachability, &flags)) {
-            if ((flags & kSCNetworkReachabilityFlagsReachable) == 0)
-            {
-                // If target host is not reachable
-                return NO;
-            }
-
-            if ((flags & kSCNetworkReachabilityFlagsConnectionRequired) == 0)
-            {
-                // If target host is reachable and no connection is required
-                //  then we'll assume (for now) that your on Wi-Fi
-                return YES;
-            }
-
-
-            if ((((flags & kSCNetworkReachabilityFlagsConnectionOnDemand ) != 0) ||
-                 (flags & kSCNetworkReachabilityFlagsConnectionOnTraffic) != 0))
-            {
-                // ... and the connection is on-demand (or on-traffic) if the
-                //     calling application is using the CFSocketStream or higher APIs.
-
-                if ((flags & kSCNetworkReachabilityFlagsInterventionRequired) == 0)
-                {
-                    // ... and no [user] intervention is needed
-                    return YES;
-                }
-            }
-
-            if ((flags & kSCNetworkReachabilityFlagsIsWWAN) == kSCNetworkReachabilityFlagsIsWWAN)
-            {
-                // ... but WWAN connections are OK if the calling application
-                //     is using the CFNetwork (CFSocketStream?) APIs.
-                return YES;
+    cursor = addresses;
+    while (cursor != NULL) {
+        if (cursor -> ifa_addr -> sa_family == AF_INET
+            && !(cursor -> ifa_flags & IFF_LOOPBACK)) // Ignore the loopback address
+        {
+            // Check for WiFi adapter
+            if (strcmp(cursor -> ifa_name, "en0") == 0) {
+                wiFiAvailable = YES;
+                break;
             }
         }
+        cursor = cursor -> ifa_next;
     }
 
-    return NO;
+    freeifaddrs(addresses);
+    return wiFiAvailable;
 }
 
 
