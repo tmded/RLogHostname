@@ -6,9 +6,6 @@
 #import <unistd.h>
 #import <arpa/inet.h>
 #import <netdb.h>
-#import <sys/socket.h>
-#import <netinet/in.h>
-#import <SystemConfiguration/SystemConfiguration.h>
 #import <ifaddrs.h> // For getifaddrs()
 #import <net/if.h> // For IFF_LOOPBACK
 // change this to match your destination (server) IP address
